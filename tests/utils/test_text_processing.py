@@ -1,6 +1,7 @@
 """Tests for the TextProcessor utility."""
 
 import pytest
+
 from book_reader.utils.text_processing import TextProcessor
 
 

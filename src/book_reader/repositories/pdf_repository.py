@@ -32,10 +32,14 @@ class PDFRepository:
         for pdf_path in self.books_dir.glob("*.pdf"):
             try:
                 # Only create the object, don't load metadata/pages here
-                doc = PDFDocument(file_path=str(pdf_path), file_name=pdf_path.name)
+                doc = PDFDocument(
+                    file_path=str(pdf_path),
+                    file_name=pdf_path.name,
+                )
                 pdf_documents.append(doc)
             except Exception as e:
-                logger.error(f"Error loading metadata for {pdf_path}: {e}")
+                err_msg = f"Error loading metadata for {pdf_path}: {e}"
+                logger.error(err_msg)
         return pdf_documents
 
     def find_by_filename(self, filename: str) -> PDFDocument | None:
@@ -44,14 +48,20 @@ class PDFRepository:
         if pdf_path.is_file() and pdf_path.suffix.lower() == ".pdf":
             try:
                 # Only create the object
-                return PDFDocument(file_path=str(pdf_path), file_name=filename)
+                return PDFDocument(
+                    file_path=str(pdf_path),
+                    file_name=filename,
+                )
             except Exception as e:
-                logger.error(f"Error loading metadata for {pdf_path}: {e}")
+                err_msg = f"Error loading metadata for {pdf_path}: {e}"
+                logger.error(err_msg)
                 return None
         return None
 
     def load_pages(
-        self, pdf_document: PDFDocument, max_pages: Optional[int] = None
+        self,
+        pdf_document: PDFDocument,
+        max_pages: Optional[int] = None,
     ) -> PDFDocument:
         """Load pages from the PDF document.
 
@@ -81,7 +91,11 @@ class PDFRepository:
         return pdf_document
 
     # Helper to load metadata if desired during load_pages
-    def _load_metadata(self, pdf_document: PDFDocument, doc: fitz.Document) -> None:
+    def _load_metadata(
+        self,
+        pdf_document: PDFDocument,
+        doc: fitz.Document,
+    ) -> None:
         """Load metadata from the PDF document."""
         try:
             metadata = doc.metadata
@@ -99,7 +113,11 @@ class PDFRepository:
             msg = f"Error loading metadata for {pdf_document.file_name}: {e}"
             logger.error(msg)
 
-    def _extract_text_from_page(self, doc: fitz.Document, page_num: int) -> str:
+    def _extract_text_from_page(
+        self,
+        doc: fitz.Document,
+        page_num: int,
+    ) -> str:
         """Extract cleaned text from a specific page of an opened document."""
         text = ""
         try:
@@ -115,7 +133,8 @@ class PDFRepository:
             else:
                 logger.warning(f"Page number {page_num} out of range.")
         except Exception as e:
-            logger.error(f"Error extracting text from page {page_num}: {e}")
+            err_msg = f"Error extracting text from page {page_num}: {e}"
+            logger.error(err_msg)
         return text
 
     @staticmethod

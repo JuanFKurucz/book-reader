@@ -6,6 +6,7 @@ from typing import Generator
 from unittest.mock import MagicMock, mock_open, patch
 
 import pytest
+
 from book_reader.models.audio_config import AudioConfig
 from book_reader.services.tts_service import (
     OpenAILegacyTTSService,

@@ -5,6 +5,7 @@ from typing import Generator
 from unittest.mock import MagicMock, patch
 
 import pytest
+
 from book_reader.models.pdf_document import PDFDocument, PDFMetadata, PDFPage
 from book_reader.repositories.pdf_repository import PDFRepository
 
@@ -48,7 +49,9 @@ def mock_fitz_open(
     mock_fitz_document: MagicMock,
 ) -> Generator[MagicMock, None, None]:
     # Patch fitz.open only where it's directly imported and used
-    with patch("book_reader.repositories.pdf_repository.fitz.open") as mock_open_ctx:
+    with patch(
+        "book_reader.repositories.pdf_repository.fitz.open",
+    ) as mock_open_ctx:
         mock_open_ctx.return_value = mock_fitz_document
         yield mock_open_ctx
 
@@ -120,7 +123,10 @@ class TestPDFRepository:
         assert pdf.file_path == str(pdf_repository.books_dir / "test.pdf")
         assert pdf.metadata.title == "Unknown Title"  # Metadata not loaded
 
-    def test_find_by_filename_not_found(self, pdf_repository: PDFRepository) -> None:
+    def test_find_by_filename_not_found(
+        self,
+        pdf_repository: PDFRepository,
+    ) -> None:
         """Test finding a PDF by filename when not found."""
         pdf = pdf_repository.find_by_filename("nonexistent.pdf")
         assert pdf is None
@@ -151,7 +157,10 @@ class TestPDFRepository:
         )
 
         # Call the method under test
-        pdf_document = pdf_repository.load_pages(mock_pdf_document, max_pages=2)
+        pdf_document = pdf_repository.load_pages(
+            mock_pdf_document,
+            max_pages=2,
+        )
         assert pdf_document.pages  # Verify pages were loaded
         assert len(pdf_document.pages) <= 2  # Verify max_pages was applied
 
@@ -161,9 +170,15 @@ class TestPDFRepository:
         # Verify pages were added (should be called exactly twice)
         assert mock_pdf_document.add_page.call_count == 2
         # Verify first call was for page 0
-        mock_pdf_document.add_page.assert_any_call("Page text content More text.", 0)
+        mock_pdf_document.add_page.assert_any_call(
+            "Page text content More text.",
+            0,
+        )
         # Verify second call was for page 1
-        mock_pdf_document.add_page.assert_any_call("Page text content More text.", 1)
+        mock_pdf_document.add_page.assert_any_call(
+            "Page text content More text.",
+            1,
+        )
 
         # Verify metadata was loaded
         assert mock_pdf_document.metadata.title == "Mock Title"
