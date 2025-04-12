@@ -205,6 +205,37 @@ def _handle_document_selection(
         return _handle_interactive_selection(factory, books_dir_path)
 
 
+def _create_audio_config(
+    voice: Optional[str] = None, model: Optional[str] = None
+) -> AudioConfig:
+    """Create audio configuration based on provided values or settings.
+
+    Args:
+        voice: Voice to use for TTS
+        model: TTS model to use
+
+    Returns:
+        Audio configuration
+    """
+    default_voice = "alloy"
+    default_model = "tts-1"
+
+    if hasattr(settings, "audio"):
+        if hasattr(settings.audio, "voice"):
+            default_voice = settings.audio.voice
+        if hasattr(settings.audio, "model"):
+            default_model = settings.audio.model
+
+    voice_str = voice if voice else default_voice
+    model_str = model if model else default_model
+
+    # Use the from_strings method to properly convert string values to enums
+    return AudioConfig.from_strings(
+        model_str=model_str,
+        voice_str=voice_str,
+    )
+
+
 def process_document(
     document: BaseDocument,
     conversion_service: ConversionService,
@@ -215,27 +246,22 @@ def process_document(
     model: Optional[str] = None,
     resume: bool = False,
 ) -> None:
-    """Process the document conversion.
+    """Process a document with the conversion service.
 
     Args:
-        document: The document to convert
-        conversion_service: The conversion service to use
-        output_dir: Directory to save audio files
+        document: Document to process
+        conversion_service: Service to use for conversion
+        output_dir: Directory to save output files
         max_pages: Maximum number of pages to process
         batch_size: Batch size for parallel processing
         voice: Voice to use for TTS
         model: TTS model to use
         resume: Whether to resume previous conversion
     """
-    # Update settings if command line options provided
-    if voice and hasattr(settings, "audio"):
-        settings.audio.voice = voice
-    if model and hasattr(settings, "audio"):
-        settings.audio.model = model
-    if batch_size and hasattr(settings, "batch_size"):
-        settings.batch_size = batch_size
+    # Create directories if they don't exist
+    output_dir.mkdir(parents=True, exist_ok=True)
 
-    # Ensure directories exist
+    # Create directories in settings if they exist
     if hasattr(settings, "paths"):
         if hasattr(settings.paths, "books_dir"):
             settings.paths.books_dir.mkdir(parents=True, exist_ok=True)
@@ -243,14 +269,7 @@ def process_document(
             settings.paths.output_dir.mkdir(parents=True, exist_ok=True)
 
     # Configure audio settings
-    audio_config = AudioConfig(
-        voice=voice
-        if voice
-        else (settings.audio.voice if hasattr(settings, "audio") else "alloy"),
-        model=model
-        if model
-        else (settings.audio.model if hasattr(settings, "audio") else "tts-1"),
-    )
+    audio_config = _create_audio_config(voice=voice, model=model)
 
     if max_pages:
         msg = f"[bold blue]Processing first {max_pages} pages.[/bold blue]"
