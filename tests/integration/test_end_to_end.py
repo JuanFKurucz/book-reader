@@ -7,10 +7,7 @@ from typing import List, Tuple
 
 import pytest
 
-from integration_tests.conftest import (
-    PDF_SAMPLE,
-    TEXT_SAMPLE,
-)
+from tests.integration.conftest import PDF_SAMPLE, TEXT_SAMPLE
 
 
 # Mark this test as expensive to ensure it's skipped by default
@@ -107,11 +104,3 @@ def test_text_conversion(
     for output_file in output_files:
         file_size = output_file.stat().st_size
         assert file_size > 0, f"Output file {output_file} is empty"
-
-
-# We can add similar tests for EPUB and TXT files when samples are available
-# @pytest.mark.expensive
-# def test_epub_conversion(temp_output_dir, temp_books_dir, check_api_key):
-#     """Test end-to-end EPUB conversion."""
-#     # Similar implementation to test_pdf_conversion
-#     ...

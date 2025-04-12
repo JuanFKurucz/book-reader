@@ -89,7 +89,7 @@ book-reader/
 ├── src/                # Source code
 ├── docs/               # Documentation
 ├── tests/              # Test suite
-├── integration_tests/  # End-to-end tests with real API calls
+│   └── integration/    # End-to-end tests with real API calls
 └── ...                 # Configuration files
 ```
 
@@ -114,21 +114,21 @@ uv run pytest
 ### Integration Tests
 
 The project includes end-to-end integration tests that perform real API calls to OpenAI. These tests:
-- Require an OpenAI API key
+- Require an OpenAI API key (from environment variable or .env file)
 - Consume API credits
 - Are skipped by default in normal test runs
 
 To run integration tests:
 
 ```bash
-# Set your OpenAI API key
+# Set your OpenAI API key (if not in .env file)
 export OPENAI_API_KEY=your-api-key
 
 # Run the integration tests
-python -m integration_tests.run_integration_tests --create-samples
+python -m tests.integration.run_integration_tests --create-samples
 ```
 
-For more details, see [Integration Tests README](integration_tests/README.md).
+For more details, see [Integration Tests README](tests/integration/README.md).
 
 ## Acknowledgements
 

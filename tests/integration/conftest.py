@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Generator, List, Tuple
 
 import pytest
+from dotenv import load_dotenv
 
 # Define sample documents for each format
 PDF_SAMPLE = "sample.pdf"
@@ -51,7 +52,11 @@ def temp_books_dir(
 
 @pytest.fixture
 def check_api_key() -> None:
-    """Check if OpenAI API key is available."""
+    """Check if OpenAI API key is available in environment or .env file."""
+    # Try to load from .env file first
+    load_dotenv()
+
+    # Check if key is available in environment
     api_key = os.environ.get("OPENAI_API_KEY")
     if not api_key:
         pytest.skip("OPENAI_API_KEY environment variable not set")

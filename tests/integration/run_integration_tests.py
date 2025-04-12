@@ -4,13 +4,15 @@
 This script runs the integration tests, which are marked as expensive
 and skipped by default in normal pytest runs.
 
-The tests will interact with OpenAI's API and consume credits, so use with caution.
+The tests interact with OpenAI's API and consume credits.
 """
 
 import argparse
 import os
 import subprocess
 import sys
+
+from dotenv import load_dotenv
 
 
 def main() -> int:
@@ -30,6 +32,9 @@ def main() -> int:
     )
     args = parser.parse_args()
 
+    # Try to load API key from .env file
+    load_dotenv()
+
     # Check for API key
     if "OPENAI_API_KEY" not in os.environ:
         if args.skip_no_key:
@@ -45,14 +50,14 @@ def main() -> int:
     # Create sample files if requested
     if args.create_samples:
         print("Creating sample files...")
-        subprocess.run([sys.executable, "-m", "integration_tests.create_samples"])
+        subprocess.run([sys.executable, "-m", "tests.integration.create_samples"])
 
     # Run the integration tests
     cmd = [
         sys.executable,
         "-m",
         "pytest",
-        "integration_tests",
+        "tests/integration",
         "-v",
         "-m",
         "expensive",

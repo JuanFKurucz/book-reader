@@ -6,18 +6,18 @@ This directory contains integration tests that run the full end-to-end flow of t
 
 - These tests consume OpenAI API credits when run.
 - They are skipped by default during normal test runs.
-- They require an OpenAI API key.
+- They require an OpenAI API key (from environment variable or .env file).
 
 ## Running Integration Tests
 
 To run the integration tests:
 
 ```bash
-# Set your OpenAI API key (required)
+# Set your OpenAI API key (required, if not in .env)
 export OPENAI_API_KEY=your-api-key
 
 # Create sample files and run tests
-python -m integration_tests.run_integration_tests --create-samples
+python -m tests.integration.run_integration_tests --create-samples
 ```
 
 ### Command Line Options
@@ -29,7 +29,7 @@ python -m integration_tests.run_integration_tests --create-samples
 
 The tests require sample files for each document type. These files are:
 
-- PDF: `books/sample.pdf` (should already exist)
+- PDF: `books/sample.pdf` (created by the sample creation script)
 - Text: `books/sample.txt` (created by the sample creation script)
 - EPUB: `books/sample.epub` (must be provided manually)
 
@@ -37,8 +37,9 @@ The tests require sample files for each document type. These files are:
 
 Integration tests are configured to run automatically on:
 
-1. Release creation (tags starting with 'v')
-2. Manual workflow dispatch
+1. Before Docker publish (as a prerequisite)
+2. Release creation (tags starting with 'v')
+3. Manual workflow dispatch
 
 This ensures that the tests are run before a release is made public, validating that the core functionality works with real API calls.
 
