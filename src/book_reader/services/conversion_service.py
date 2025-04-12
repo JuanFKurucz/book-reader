@@ -1,19 +1,18 @@
-"""PDF to Audiobook Conversion Service."""
+"""Service for converting documents to audiobooks."""
 
 import concurrent.futures
 import json
 import os
 from pathlib import Path
-from typing import List, Optional, Sequence, Union
+from typing import List, Optional, Sequence, Union, cast
 
-from book_reader.models.audio_config import AudioConfig
-from book_reader.models.pdf_document import PDFDocument
-from book_reader.repositories.pdf_repository import PDFRepository
+from loguru import logger
+
+from book_reader.config.audio_config import AudioConfig
+from book_reader.models.base.document import BaseDocument
+from book_reader.repositories.base.base_repository import BaseRepository
 from book_reader.services.tts_service import OpenAITTSServiceFactory, TTSService
-from book_reader.utils.logging import get_logger
 from book_reader.utils.text_processing import TextProcessor
-
-logger = get_logger(__name__)
 
 # Use Sequence for covariance if only iteration is needed
 ChunkData = tuple[str, Path, int, AudioConfig]
@@ -21,11 +20,11 @@ ChunkArgs = Sequence[ChunkData]  # Sequence of chunk data tuples
 
 
 class ConversionService:
-    """Service for converting PDFs to audiobooks."""
+    """Service for converting documents to audiobooks."""
 
     def __init__(
         self,
-        pdf_repository: PDFRepository,
+        document_repository: BaseRepository,
         tts_service: Optional[TTSService] = None,
         progress_file: str = "conversion_progress.json",
         batch_size: int = 4,
@@ -33,12 +32,12 @@ class ConversionService:
         """Initialize the conversion service.
 
         Args:
-            pdf_repository: Repository for accessing PDFs
+            document_repository: Repository for accessing documents
             tts_service: Service for text-to-speech conversion
             progress_file: File to store conversion progress
             batch_size: Number of parallel conversions
         """
-        self.pdf_repository = pdf_repository
+        self.document_repository = document_repository
         # Use provided TTS service or create one
         self.tts_service = tts_service or OpenAITTSServiceFactory.create()
         self.progress_file = Path(progress_file)
@@ -46,19 +45,19 @@ class ConversionService:
         self.batch_size = batch_size
         self.current_book_id: Optional[str] = None
 
-    def convert_pdf_to_audiobook(
+    def convert_document_to_audiobook(
         self,
-        pdf_document: PDFDocument,
+        document: BaseDocument,
         output_dir: Path,
         audio_config: Optional[AudioConfig] = None,
         batch_size: int = 4,
         resume: bool = False,
         max_pages: Optional[int] = None,
     ) -> Optional[Path]:
-        """Convert PDF to audiobook.
+        """Convert document to audiobook.
 
         Args:
-            pdf_document: PDF document to convert
+            document: Document to convert
             output_dir: Directory to save audiobook files
             audio_config: Audio configuration
             batch_size: Number of parallel conversions
@@ -68,19 +67,19 @@ class ConversionService:
         Returns:
             Path to the output directory
         """
-        # Load PDF content ONCE
-        loaded_pdf_document = self.pdf_repository.load_pages(
-            pdf_document=pdf_document, max_pages=max_pages
+        # Load document content ONCE
+        loaded_document = self.document_repository.load_pages(
+            document=document, max_pages=max_pages
         )
-        if not loaded_pdf_document.pages:
-            logger.warning(f"No pages loaded for {pdf_document.file_name}. Exiting.")
+        if not loaded_document.pages:
+            logger.warning(f"No pages loaded for {document.file_name}. Exiting.")
             return None
 
         # Set current book ID
-        self.current_book_id = loaded_pdf_document.book_id
+        self.current_book_id = loaded_document.book_id
 
         # Create output directory
-        book_output_dir = output_dir / loaded_pdf_document.book_id
+        book_output_dir = output_dir / loaded_document.book_id
         book_output_dir.mkdir(parents=True, exist_ok=True)
 
         # Ensure audio_config is not None before passing
@@ -91,12 +90,7 @@ class ConversionService:
             _audio_config = audio_config
 
         # Prepare chunks (pass loaded doc)
-        all_text_chunks = self._prepare_text_chunks(loaded_pdf_document, _audio_config)
-
-        # Assign chunks to pages (Optional: if needed later, but split from all_text)
-        # This part might need revisiting if page-specific chunk association
-        # is critical
-        # For now, we work with the flat list `all_text_chunks`
+        all_text_chunks = self._prepare_text_chunks(loaded_document, _audio_config)
 
         # Prepare conversion data using the flat list of chunks
         all_chunks_data = self._prepare_chunks_for_conversion(
@@ -105,7 +99,7 @@ class ConversionService:
 
         # Load previous progress if resuming
         completed_chunks_indices: list[int] = (
-            self._load_progress(loaded_pdf_document.book_id) if resume else []
+            self._load_progress(loaded_document.book_id) if resume else []
         )
 
         # Filter out already completed chunks
@@ -143,17 +137,50 @@ class ConversionService:
         all_completed_indices = list(set(completed_chunks_indices) | successful_indices)
 
         # Save progress with the combined set
-        self._save_progress(loaded_pdf_document.book_id, all_completed_indices)
+        self._save_progress(loaded_document.book_id, all_completed_indices)
 
-        logger.info(
-            f"Audiobook conversion for '{loaded_pdf_document.book_id}' completed."
-        )
+        logger.info(f"Audiobook conversion for '{loaded_document.book_id}' completed.")
         # Return the output directory instead of the list of files
         # for compatibility with tests
-        return book_output_dir
+        return cast(Path, book_output_dir)
+
+    # Legacy method to maintain backwards compatibility
+    def convert_pdf_to_audiobook(
+        self,
+        pdf_document: BaseDocument,
+        output_dir: Path,
+        audio_config: Optional[AudioConfig] = None,
+        batch_size: int = 4,
+        resume: bool = False,
+        max_pages: Optional[int] = None,
+    ) -> Optional[Path]:
+        """Convert PDF to audiobook (legacy method).
+
+        This method is maintained for backward compatibility.
+        It simply calls convert_document_to_audiobook.
+
+        Args:
+            pdf_document: PDF document to convert
+            output_dir: Directory to save audiobook files
+            audio_config: Audio configuration
+            batch_size: Number of parallel conversions
+            resume: Whether to resume previous conversion
+            max_pages: Maximum number of pages to process
+
+        Returns:
+            Path to the output directory
+        """
+        return self.convert_document_to_audiobook(
+            document=pdf_document,
+            output_dir=output_dir,
+            audio_config=audio_config,
+            batch_size=batch_size,
+            resume=resume,
+            max_pages=max_pages,
+        )
 
     def _prepare_text_chunks(
-        self, loaded_pdf_document: PDFDocument, audio_config: AudioConfig
+        self, loaded_document: BaseDocument, audio_config: AudioConfig
     ) -> List[str]:
         """Extract text from loaded pages and return individual chunks.
 
@@ -162,7 +189,7 @@ class ConversionService:
         """
         # Instead of concatenating all pages, preserve each page's chunks
         all_chunks = []
-        for page in loaded_pdf_document.pages:
+        for page in loaded_document.pages:
             if hasattr(page, "chunks") and page.chunks:
                 all_chunks.extend(page.chunks)
             else:
@@ -352,32 +379,32 @@ class ConversionService:
             logger.error(f"Could not save progress to {self.progress_file}: {e}")
 
     def prepare_chunks_for_conversion(
-        self, pdf_document: PDFDocument, completed_chunks: list[int]
+        self, document: BaseDocument, completed_chunks: list[int]
     ) -> List[ChunkData]:
         """Prepare chunks for conversion, filtering completed chunks.
 
         Public wrapper around the internal methods used to prepare chunks.
 
         Args:
-            pdf_document: PDF document to process
+            document: Document to process
             completed_chunks: List of indices of completed chunks
 
         Returns:
             List of chunk data tuples, excluding completed chunks
         """
         # Load the document if needed (tests might have already loaded it)
-        loaded_pdf_document = pdf_document
-        if not pdf_document.pages and hasattr(pdf_document, "file_path"):
-            loaded_pdf_document = self.pdf_repository.load_pages(pdf_document)
+        loaded_document = document
+        if not document.pages and hasattr(document, "file_path"):
+            loaded_document = self.document_repository.load_pages(document)
 
         # Create dummy output directory for tests
-        output_dir = Path("test_output") / loaded_pdf_document.book_id
+        output_dir = Path("test_output") / loaded_document.book_id
 
         # Use a default audio config
         audio_config = AudioConfig()
 
         # Prepare text chunks from loaded document
-        all_text_chunks = self._prepare_text_chunks(loaded_pdf_document, audio_config)
+        all_text_chunks = self._prepare_text_chunks(loaded_document, audio_config)
 
         # Convert to chunk data format
         all_chunks_data = self._prepare_chunks_for_conversion(

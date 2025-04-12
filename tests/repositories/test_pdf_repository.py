@@ -6,8 +6,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from book_reader.models.pdf_document import PDFDocument, PDFMetadata, PDFPage
-from book_reader.repositories.pdf_repository import PDFRepository
+from book_reader.models.formats.pdf_document import PDFDocument, PDFMetadata, PDFPage
+from book_reader.repositories.providers.pdf_repository import PDFRepository
 
 
 @pytest.fixture
@@ -50,7 +50,7 @@ def mock_fitz_open(
 ) -> Generator[MagicMock, None, None]:
     # Patch fitz.open only where it's directly imported and used
     with patch(
-        "book_reader.repositories.pdf_repository.fitz.open",
+        "book_reader.repositories.providers.pdf_repository.fitz.open",
     ) as mock_open_ctx:
         mock_open_ctx.return_value = mock_fitz_document
         yield mock_open_ctx

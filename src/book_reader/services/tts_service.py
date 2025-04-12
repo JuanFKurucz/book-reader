@@ -1,4 +1,4 @@
-"""Text-to-Speech Service."""
+"""Text-to-Speech (TTS) Service Interface and Implementations."""
 
 import os
 from abc import ABC, abstractmethod
@@ -8,7 +8,7 @@ from typing import Optional
 import openai
 import requests
 
-from book_reader.models.audio_config import (
+from book_reader.config.audio_config import (
     AudioConfig,
 )
 

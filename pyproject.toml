@@ -21,6 +21,7 @@ classifiers = [
 dependencies = [
     "PyMuPDF>=1.20.0",
     "beautifulsoup4>=4.10.0",
+    "ebooklib>=0.18",
     "openai>=1.0.0",
     "lxml>=4.9.0",
     "python-dotenv>=1.0.0",
@@ -95,6 +96,7 @@ module = [
     "rich.*",
     "click",
     "bs4",
+    "ebooklib",
     "pytest",
     "loguru"
 ]

@@ -86,6 +86,7 @@ source = { editable = "." }
 dependencies = [
     { name = "beautifulsoup4" },
     { name = "click" },
+    { name = "ebooklib" },
     { name = "loguru" },
     { name = "lxml" },
     { name = "openai" },
@@ -117,6 +118,7 @@ requires-dist = [
     { name = "beautifulsoup4", specifier = ">=4.10.0" },
     { name = "black", marker = "extra == 'dev'", specifier = ">=23.0.0" },
     { name = "click", specifier = ">=8.1.0" },
+    { name = "ebooklib", specifier = ">=0.18" },
     { name = "loguru", specifier = ">=0.7.0" },
     { name = "lxml", specifier = ">=4.9.0" },
     { name = "mkdocs", marker = "extra == 'docs'", specifier = ">=1.5.0" },
@@ -244,6 +246,16 @@ sdist = { url = "https://files.pythonhosted.org/packages/fc/f8/98eea607f65de6527
 wheels = [
     { url = "https://files.pythonhosted.org/packages/12/b3/231ffd4ab1fc9d679809f356cebee130ac7daa00d6d6f3206dd4fd137e9e/distro-1.9.0-py3-none-any.whl", hash = "sha256:7bffd925d65168f85027d8da9af6bddab658135b840670a223589bc0c8ef02b2", size = 20277 },
 ]
+
+[[package]]
+name = "ebooklib"
+version = "0.18"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "lxml" },
+    { name = "six" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/e8/1d/90bb33317d756c25b40bb55312dda30a94afb691755763fc00976250c82b/EbookLib-0.18.tar.gz", hash = "sha256:38562643a7bc94d9bf56e9930b4927e4e93b5d1d0917f697a6454db5a1c1a533", size = 115484 }
 
 [[package]]
 name = "filelock"
