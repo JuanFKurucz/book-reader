@@ -17,7 +17,7 @@ repos:
 -   repo: https://github.com/astral-sh/ruff-pre-commit
     # Use a specific Ruff version compatible with your pyproject.toml
     # rev: v0.5.9 # This tag doesn't exist
-    rev: v0.5.5 # Use a valid tag
+    rev: v0.11.5 # Use the same version as in our dev dependencies
     hooks:
     # Lint with autofix
     -   id: ruff
