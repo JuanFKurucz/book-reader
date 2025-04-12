@@ -28,13 +28,20 @@ jobs:
     - name: Add uv to PATH
       run: echo "$HOME/.cargo/bin" >> $GITHUB_PATH
 
+    - name: Create virtual environment
+      run: uv venv
+
     - name: Install dependencies (including dev for pytest)
-      run: uv pip install -e ".[dev]"
+      run: |
+        source .venv/bin/activate
+        uv pip install -e ".[dev]"
 
     - name: Run Pytest with Coverage
       # Pass OPENAI_API_KEY as an env var if tests require it (even mocked ones might need the var set)
       # Use secrets for actual keys in real scenarios
-      run: uv run pytest --cov=src/book_reader --cov-report=xml
+      run: |
+        source .venv/bin/activate
+        uv run pytest --cov=src/book_reader --cov-report=xml
       env:
         OPENAI_API_KEY: 'test-key' # Use a dummy key
 
