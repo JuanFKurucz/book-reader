@@ -4,6 +4,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, mock_open, patch
 
 import pytest
+
 from book_reader.models.audio_config import AudioConfig
 from book_reader.models.pdf_document import PDFDocument, PDFMetadata, PDFPage
 from book_reader.services.conversion_service import ConversionService

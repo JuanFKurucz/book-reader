@@ -5,6 +5,7 @@ from typing import Generator
 from unittest.mock import MagicMock, patch
 
 import pytest
+
 from book_reader.models.pdf_document import PDFDocument, PDFMetadata, PDFPage
 from book_reader.repositories.pdf_repository import PDFRepository
 

@@ -1,6 +1,7 @@
 """Tests for the AudioConfig model."""
 
 import pytest
+
 from book_reader.models.audio_config import AudioConfig, TTSModel, TTSVoice
 
 
