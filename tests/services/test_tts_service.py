@@ -1,4 +1,4 @@
-"""Tests for the TTSService implementations."""
+"""Tests for the TTS Service."""
 
 import os
 from pathlib import Path
@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, mock_open, patch
 
 import pytest
 
-from book_reader.models.audio_config import AudioConfig
+from book_reader.config.audio_config import AudioConfig
 from book_reader.services.tts_service import (
     OpenAILegacyTTSService,
     OpenAIModernTTSService,

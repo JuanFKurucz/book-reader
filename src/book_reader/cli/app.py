@@ -2,117 +2,242 @@
 
 import sys
 from pathlib import Path
-from typing import Optional
+from typing import Any, List, Optional, Tuple, cast
 
 import click
 from rich.console import Console
-from rich.panel import Panel
-from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.prompt import Prompt
 
-from book_reader.config.settings import settings
-from book_reader.models.audio_config import AudioConfig, TTSModel, TTSVoice
-from book_reader.models.pdf_document import PDFDocument
-from book_reader.repositories.pdf_repository import PDFRepository
+from book_reader.config import settings
+from book_reader.config.audio_config import AudioConfig
+from book_reader.models.base.document import BaseDocument
+from book_reader.repositories.document_factory import DocumentFactory
 from book_reader.services.conversion_service import ConversionService
+from book_reader.services.tts_service import OpenAITTSServiceFactory
 
 console = Console()
 
 
-def setup_services() -> tuple[PDFRepository, ConversionService]:
-    """Set up the repository and service dependencies.
+def setup_services() -> Tuple[DocumentFactory, ConversionService]:
+    """Set up and return the document factory and conversion service."""
+    # Create the document factory
+    document_factory = DocumentFactory()
 
-    Returns:
-        A tuple containing the repository and service.
-    """
-    repository = PDFRepository(str(settings.paths.books_dir))
-    service = ConversionService(
-        repository, progress_file=str(settings.paths.progress_file)
+    # Create the TTS service
+    tts_service = OpenAITTSServiceFactory.create()
+
+    # Create the conversion service with the repositories
+    conversion_service = ConversionService(
+        tts_service=tts_service,
+        # Cast to make type checker happy - document_factory is not BaseRepository
+        # but this still works at runtime due to design
+        document_repository=cast(Any, document_factory),
     )
-    return repository, service
+
+    return document_factory, conversion_service
 
 
-def display_pdf_choices(pdf_documents: list[PDFDocument]) -> Optional[PDFDocument]:
-    """Display available PDF files and let the user choose one.
+def _handle_sample_document(
+    factory: DocumentFactory, books_dir_path: Path
+) -> Optional[BaseDocument]:
+    """Handle selection of sample document.
 
     Args:
-        pdf_documents: List of available PDF documents
+        factory: The document factory to use
+        books_dir_path: Directory containing document files
 
     Returns:
-        The selected PDF document or None if user cancels
+        Sample document or None if not found
     """
-    if not pdf_documents:
-        console.print("[bold red]No PDF files found.[/bold red]")
+    # Use the sample document
+    sample_files = list(books_dir_path.glob("sample.*"))
+    if not sample_files:
+        err_msg = f"No sample document found in {books_dir_path}"
+        console.print(f"[bold red]Error:[/bold red] {err_msg}")
         return None
 
-    console.print("\n[bold blue]Available PDF files:[/bold blue]")
-    console.print(
-        Panel(
-            "\n".join(
-                f"{index}. [bold]{doc.metadata.title}[/bold] by "
-                f"{doc.metadata.author} ({doc.metadata.page_count} pages, "
-                f"{doc.metadata.date})"
-                for index, doc in enumerate(pdf_documents, start=1)
-            ),
-            title=f"Found {len(pdf_documents)} PDF files",
-            border_style="blue",
-        )
+    # Convert Path to string for factory
+    repo = factory.get_repository_for_file(
+        str(sample_files[0]),
+        books_dir=str(books_dir_path),
     )
 
-    while True:
-        try:
-            choice = Prompt.ask(
-                "\nEnter the number of the PDF to convert (or q to quit)", default="1"
-            )
+    if repo is None:
+        console.print(
+            "[bold red]Error:[/bold red] Could not get repository for sample file"
+        )
+        return None
 
-            if choice.lower() == "q":
-                return None
+    sample_doc = repo.find_by_filename(sample_files[0].name)
+    if sample_doc:
+        console.print(
+            f"[bold green]Using sample document:[/bold green] {sample_doc.file_name}"
+        )
+        return cast(BaseDocument, sample_doc)
+    else:
+        msg = "[bold red]Error:[/bold red] Could not load sample document"
+        console.print(msg)
+        return None
 
-            choice_idx = int(choice) - 1
-            if 0 <= choice_idx < len(pdf_documents):
-                return pdf_documents[choice_idx]
-            else:
-                console.print("[bold red]Invalid choice. Please try again.[/bold red]")
-        except ValueError:
-            console.print("[bold red]Please enter a valid number.[/bold red]")
 
-
-def _handle_pdf_selection(
-    repository: PDFRepository, sample: bool
-) -> Optional[PDFDocument]:
-    """Handles the logic of selecting a PDF based on user input or sample flag.
+def _handle_specific_document(
+    factory: DocumentFactory, books_dir_path: Path, filename: str
+) -> Optional[BaseDocument]:
+    """Handle selection of a specific document by filename.
 
     Args:
-        repository: The PDF repository instance.
-        sample: Boolean indicating if the sample PDF should be used.
+        factory: The document factory to use
+        books_dir_path: Directory containing document files
+        filename: Specific filename to convert
 
     Returns:
-        The selected PDFDocument or None if no selection is made or found.
+        Selected document or None if selection failed
     """
-    if sample:
-        sample_doc = repository.find_by_filename("sample.pdf")
-        if not sample_doc:
-            console.print(
-                "[bold red]Sample file 'sample.pdf' not found in "
-                "books directory.[/bold red]"
-            )
-            return None
-        console.print("[bold green]Using sample.pdf for testing.[/bold green]")
-        return sample_doc
+    # User specified a filename
+    doc_path = books_dir_path / filename
+    if not doc_path.exists():
+        msg = f"[bold red]Error:[/bold red] File not found: {doc_path}"
+        console.print(msg)
+        return None
+
+    # Convert Path to string for factory
+    repository = factory.get_repository_for_file(
+        str(doc_path),
+        books_dir=str(books_dir_path),
+    )
+    if not repository:
+        err_msg = f"Unsupported file format: {doc_path}"
+        console.print(f"[bold red]Error:[/bold red] {err_msg}")
+        return None
+
+    document = repository.find_by_filename(doc_path.name)
+    if document:
+        console.print(
+            f"[bold green]Selected document:[/bold green] {document.file_name}"
+        )
+        return cast(BaseDocument, document)
     else:
-        pdf_documents = repository.find_all_pdfs()
-        if not pdf_documents:
+        err_msg = f"Could not load document: {doc_path}"
+        console.print(f"[bold red]Error:[/bold red] {err_msg}")
+        return None
+
+
+def _handle_interactive_selection(
+    factory: DocumentFactory, books_dir_path: Path
+) -> Optional[BaseDocument]:
+    """Handle interactive document selection.
+
+    Args:
+        factory: The document factory to use
+        books_dir_path: Directory containing document files
+
+    Returns:
+        Selected document or None if selection failed
+    """
+    # No specific document selected, show a list
+    all_documents: List[BaseDocument] = []
+    for repository in factory.get_all_repositories(books_dir=str(books_dir_path)):
+        all_documents.extend(repository.find_all_documents())
+
+    if not all_documents:
+        console.print(
+            f"[bold yellow]No documents found in {books_dir_path}[/bold yellow]"
+        )
+        return None
+
+    # Display documents with numbers
+    console.print("[bold]Available documents:[/bold]")
+    for i, doc in enumerate(all_documents, 1):
+        console.print(f"  {i}. {doc.file_name} ({doc.format})")
+
+    # Prompt user to select a document
+    try:
+        prompt = "Enter document number to convert"
+        selection = Prompt.ask(prompt, default="1")
+        index = int(selection) - 1
+        if 0 <= index < len(all_documents):
+            selected_doc = all_documents[index]
             console.print(
-                f"[bold red]No PDF files found in "
-                f"{settings.paths.books_dir}.[/bold red]"
+                f"[bold green]Selected document:[/bold green] {selected_doc.file_name}"
             )
-            console.print("Please add PDF files to this directory and try again.")
+            return selected_doc
+        else:
+            console.print("[bold red]Error:[/bold red] Invalid selection")
             return None
-        return display_pdf_choices(pdf_documents)
+    except (ValueError, KeyboardInterrupt):
+        msg = "[bold yellow]Document selection canceled[/bold yellow]"
+        console.print(msg)
+        return None
+
+
+def _handle_document_selection(
+    factory: DocumentFactory,
+    use_sample: bool = False,
+    filename: Optional[str] = None,
+    books_dir: Optional[Path] = None,
+) -> Optional[BaseDocument]:
+    """Handle document selection logic.
+
+    Args:
+        factory: The document factory to use
+        use_sample: Whether to use the sample document
+        filename: Specific filename to convert
+        books_dir: Directory containing document files
+
+    Returns:
+        Selected document or None if selection failed
+    """
+    # Get books directory from settings if not specified
+    if books_dir is None:
+        books_dir_path = Path("books")  # Default to books/ in current directory
+        # Try to get books_dir from settings if available
+        if hasattr(settings, "paths"):
+            if hasattr(settings.paths, "books_dir"):
+                books_dir_path = settings.paths.books_dir
+    else:
+        books_dir_path = books_dir
+
+    if use_sample:
+        return _handle_sample_document(factory, books_dir_path)
+    elif filename:
+        return _handle_specific_document(factory, books_dir_path, filename)
+    else:
+        return _handle_interactive_selection(factory, books_dir_path)
+
+
+def _create_audio_config(
+    voice: Optional[str] = None, model: Optional[str] = None
+) -> AudioConfig:
+    """Create audio configuration based on provided values or settings.
+
+    Args:
+        voice: Voice to use for TTS
+        model: TTS model to use
+
+    Returns:
+        Audio configuration
+    """
+    default_voice = "alloy"
+    default_model = "tts-1"
+
+    if hasattr(settings, "audio"):
+        if hasattr(settings.audio, "voice"):
+            default_voice = settings.audio.voice
+        if hasattr(settings.audio, "model"):
+            default_model = settings.audio.model
+
+    voice_str = voice if voice else default_voice
+    model_str = model if model else default_model
+
+    # Use the from_strings method to properly convert string values to enums
+    return AudioConfig.from_strings(
+        model_str=model_str,
+        voice_str=voice_str,
+    )
 
 
 def process_document(
-    pdf_document: PDFDocument,
+    document: BaseDocument,
     conversion_service: ConversionService,
     output_dir: Path,
     max_pages: Optional[int] = None,
@@ -121,193 +246,154 @@ def process_document(
     model: Optional[str] = None,
     resume: bool = False,
 ) -> None:
-    """Process a PDF document and convert it to an audiobook.
+    """Process a document with the conversion service.
 
     Args:
-        pdf_document: The PDF document to process
-        conversion_service: The conversion service
-        output_dir: Output directory for audio files
+        document: Document to process
+        conversion_service: Service to use for conversion
+        output_dir: Directory to save output files
         max_pages: Maximum number of pages to process
-        batch_size: Number of chunks to process in parallel
+        batch_size: Batch size for parallel processing
         voice: Voice to use for TTS
-        model: Model to use for TTS
-        resume: Whether to resume from previous conversion
+        model: TTS model to use
+        resume: Whether to resume previous conversion
     """
-    # Use batch size from settings if not provided
-    effective_batch_size = batch_size if batch_size is not None else settings.batch_size
+    # Create directories if they don't exist
+    output_dir.mkdir(parents=True, exist_ok=True)
 
-    meta = pdf_document.metadata
-    audio_model_str = model or settings.audio.model
-    audio_voice_str = voice or settings.audio.voice
+    # Create directories in settings if they exist
+    if hasattr(settings, "paths"):
+        if hasattr(settings.paths, "books_dir"):
+            settings.paths.books_dir.mkdir(parents=True, exist_ok=True)
+        if hasattr(settings.paths, "output_dir"):
+            settings.paths.output_dir.mkdir(parents=True, exist_ok=True)
 
-    # Validate and convert model/voice strings to enums
-    try:
-        audio_model_enum = TTSModel(audio_model_str)
-    except ValueError:
-        console.print(
-            f"[bold yellow]Warning: Invalid TTS model '{audio_model_str}'. "
-            f"Using default.[/bold yellow]"
-        )
-        audio_model_enum = TTSModel(settings.audio.model)
+    # Configure audio settings
+    audio_config = _create_audio_config(voice=voice, model=model)
 
-    try:
-        audio_voice_enum = TTSVoice(audio_voice_str)
-    except ValueError:
-        console.print(
-            f"[bold yellow]Warning: Invalid TTS voice '{audio_voice_str}'. "
-            f"Using default.[/bold yellow]"
-        )
-        audio_voice_enum = TTSVoice(settings.audio.voice)
+    if max_pages:
+        msg = f"[bold blue]Processing first {max_pages} pages.[/bold blue]"
+        console.print(msg)
 
-    console.print(
-        Panel(
-            f"[bold green]Converting[/bold green]: {meta.title}\n"
-            f"[bold]Author[/bold]: {meta.author}\n"
-            f"[bold]Pages[/bold]: {meta.page_count}"
-            + (f" (processing first {max_pages})" if max_pages else "")
-            + "\n"
-            f"[bold]Model[/bold]: {audio_model_enum}\n"
-            f"[bold]Voice[/bold]: {audio_voice_enum}\n"
-            f"[bold]Batch size[/bold]: {effective_batch_size}\n"
-            f"[bold]Resume[/bold]: {'Yes' if resume else 'No'}",
-            title="Book Reader Conversion",
-            border_style="blue",
-        )
-    )
+    # Set batch size, use provided value or get from settings if available
+    effective_batch_size = batch_size
+    if effective_batch_size is None and hasattr(settings, "batch_size"):
+        effective_batch_size = settings.batch_size
+    if effective_batch_size is None:
+        effective_batch_size = 4  # Default
 
-    # Create audio configuration using enums
-    audio_config = AudioConfig(
-        model=audio_model_enum,
-        voice=audio_voice_enum,
-        max_text_length=settings.audio.max_text_length,
-    )
-
-    # Convert PDF to audiobook with progress tracking
-    with Progress(
-        SpinnerColumn(),
-        TextColumn("[bold blue]{task.description}[/bold blue]"),
-        console=console,
-    ) as progress:
-        task = progress.add_task("Converting PDF to audiobook...", total=None)
-
-        audio_files = conversion_service.convert_pdf_to_audiobook(
-            pdf_document=pdf_document,
-            output_dir=output_dir,
-            audio_config=audio_config,
-            batch_size=effective_batch_size,
-            resume=resume,
-            max_pages=max_pages,
-        )
-
-        progress.update(task, completed=True)
-
-    # Print summary
-    console.print("\n[bold green]Conversion completed![/bold green]")
-
-    # Calculate file count safely
-    file_count = 0
-    if audio_files is not None:
-        if isinstance(audio_files, list):
-            file_count = len(audio_files)
-
-    console.print(
-        f"[green]Generated {file_count} audio files in "
-        f"{output_dir}/{pdf_document.book_id}[/green]"
+    # Convert document to audiobook
+    conversion_service.convert_document_to_audiobook(
+        document=document,
+        output_dir=output_dir,
+        audio_config=audio_config,
+        batch_size=effective_batch_size,
+        resume=resume,
+        max_pages=max_pages,
     )
 
 
 @click.group()
-@click.version_option("0.1.0", prog_name="book-reader")
 def cli() -> None:
-    """Book Reader - Convert PDF files to audio using OpenAI TTS."""
+    """Book Reader - Convert documents to audiobooks using OpenAI TTS."""
     pass
 
 
 @cli.command()
+@click.argument("filename", required=False)
 @click.option(
-    "--sample", is_flag=True, help="Use sample.pdf from the books directory for testing"
+    "--sample",
+    is_flag=True,
+    help="Use the sample document for testing",
 )
 @click.option(
-    "--max-pages", type=int, default=None, help="Maximum number of pages to process"
+    "--max-pages",
+    type=int,
+    help="Maximum number of pages to process",
 )
 @click.option(
     "--batch-size",
     type=int,
-    default=None,
-    help=f"Batch size for parallel processing (default: {settings.batch_size})",
+    help="Batch size for parallel processing",
 )
 @click.option(
     "--voice",
     type=str,
-    default=None,
-    help=f"Voice to use (default: {settings.audio.voice})",
+    help="Voice to use for TTS",
 )
 @click.option(
     "--model",
     type=str,
-    default=None,
-    help=f"Model to use (default: {settings.audio.model})",
+    help="TTS model to use",
 )
 @click.option(
     "--output-dir",
-    type=click.Path(file_okay=False),
-    default=None,
-    help=f"Directory to save audiobooks (default: {settings.paths.output_dir})",
+    type=click.Path(),
+    help="Directory to save audiobook files",
 )
 @click.option(
     "--books-dir",
-    type=click.Path(file_okay=False),
-    default=None,
-    help=f"Directory containing PDF files (default: {settings.paths.books_dir})",
+    type=click.Path(exists=True),
+    help="Directory containing document files",
 )
-@click.option("--resume", is_flag=True, help="Resume previous conversion")
+@click.option(
+    "--resume",
+    is_flag=True,
+    help="Resume previous conversion",
+)
 def convert(
-    sample: bool,
-    max_pages: Optional[int],
-    batch_size: Optional[int],
-    voice: Optional[str],
-    model: Optional[str],
-    output_dir: Optional[str],
-    books_dir: Optional[str],
-    resume: bool,
+    filename: Optional[str] = None,
+    sample: bool = False,
+    max_pages: Optional[int] = None,
+    batch_size: Optional[int] = None,
+    voice: Optional[str] = None,
+    model: Optional[str] = None,
+    output_dir: Optional[str] = None,
+    books_dir: Optional[str] = None,
+    resume: bool = False,
 ) -> None:
-    """Convert PDF files to audiobooks."""
-    # Update settings if command line options are provided
-    if books_dir:
-        settings.paths.books_dir = Path(books_dir)
-    if output_dir:
-        settings.paths.output_dir = Path(output_dir)
-    if voice:
-        settings.audio.voice = voice
-    if model:
-        settings.audio.model = model
-    if batch_size:
-        settings.batch_size = batch_size
+    """Convert a document to an audiobook.
 
-    # Ensure directories exist
-    settings.paths.books_dir.mkdir(parents=True, exist_ok=True)
-    settings.paths.output_dir.mkdir(parents=True, exist_ok=True)
+    If FILENAME is provided, converts that specific document.
+    If --sample is provided, uses the sample document.
+    Otherwise, presents a list of available documents to choose from.
+    """
+    # Set up paths from settings or command line arguments
+    books_dir_path = Path("books")  # Default to books/ in current directory
+    output_dir_path = Path("output")  # Default to output/ in current directory
+
+    # If settings.paths exists, use its values as defaults
+    if hasattr(settings, "paths"):
+        if hasattr(settings.paths, "books_dir"):
+            books_dir_path = settings.paths.books_dir
+        if hasattr(settings.paths, "output_dir"):
+            output_dir_path = settings.paths.output_dir
+
+    # Override with command line arguments if provided
+    if books_dir:
+        books_dir_path = Path(books_dir)
+    if output_dir:
+        output_dir_path = Path(output_dir)
 
     # Set up services
-    repository, service = setup_services()
+    document_factory, conversion_service = setup_services()
 
-    # Handle PDF selection
-    selected_pdf = _handle_pdf_selection(repository, sample)
+    # Handle document selection
+    document = _handle_document_selection(
+        factory=document_factory,
+        use_sample=sample,
+        filename=filename,
+        books_dir=books_dir_path,
+    )
 
-    if not selected_pdf:
-        console.print(
-            "[bold yellow]No PDF selected for conversion. Exiting.[/bold yellow]"
-        )
+    if not document:
         sys.exit(1)
 
     # Process the selected document
-    if max_pages:
-        console.print(f"[bold blue]Processing first {max_pages} pages.[/bold blue]")
-
     process_document(
-        pdf_document=selected_pdf,
-        conversion_service=service,
-        output_dir=settings.paths.output_dir,
+        document=document,
+        conversion_service=conversion_service,
+        output_dir=output_dir_path,
         max_pages=max_pages,
         batch_size=batch_size,
         voice=voice,
@@ -315,39 +401,18 @@ def convert(
         resume=resume,
     )
 
-
-@cli.command()
-def list_pdfs() -> None:
-    """List all available PDF files."""
-    repository, _ = setup_services()
-    pdf_documents = repository.find_all_pdfs()
-
-    if not pdf_documents:
-        console.print(
-            f"[bold red]No PDF files found in {settings.paths.books_dir}.[/bold red]"
-        )
-        console.print("Please add PDF files to this directory and try again.")
-        return
-
-    console.print("\n[bold blue]Available PDF files:[/bold blue]")
-    console.print(
-        Panel(
-            "\n".join(
-                f"{index}. [bold]{doc.metadata.title}[/bold] by "
-                f"{doc.metadata.author} ({doc.metadata.page_count} pages, "
-                f"{doc.metadata.date})"
-                for index, doc in enumerate(pdf_documents, start=1)
-            ),
-            title=f"Found {len(pdf_documents)} PDF files",
-            border_style="blue",
-        )
-    )
+    msg = "\n[bold green]Conversion completed successfully![/bold green]"
+    console.print(msg)
 
 
 def main() -> None:
-    """Run the Book Reader CLI application."""
+    """Main entry point."""
     try:
         cli()
+    except KeyboardInterrupt:
+        msg = "\n[bold yellow]Operation cancelled by user.[/bold yellow]"
+        console.print(msg)
+        sys.exit(0)
     except Exception as e:
         console.print(f"[bold red]Error:[/bold red] {str(e)}")
         sys.exit(1)

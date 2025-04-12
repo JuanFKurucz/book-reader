@@ -1,8 +1,8 @@
-"""Tests for the AudioConfig model."""
+"""Tests for AudioConfig."""
 
 import pytest
 
-from book_reader.models.audio_config import AudioConfig, TTSModel, TTSVoice
+from book_reader.config.audio_config import AudioConfig, TTSModel, TTSVoice
 
 
 class TestAudioConfig:

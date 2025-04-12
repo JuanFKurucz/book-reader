@@ -1,15 +1,17 @@
-"""PDF Repository implementation."""
+"""PDF Repository for handling PDF files."""
 
 from pathlib import Path
-from typing import Optional
+from typing import List, Optional, cast
 
 import fitz
 from loguru import logger
 
-from book_reader.models.pdf_document import PDFDocument
+from book_reader.models.base.document import BaseDocument
+from book_reader.models.formats.pdf_document import PDFDocument
+from book_reader.repositories.base.base_repository import BaseRepository
 
 
-class PDFRepository:
+class PDFRepository(BaseRepository[PDFDocument]):
     """Repository for accessing and managing PDF documents."""
 
     def __init__(self, books_dir: str) -> None:
@@ -18,17 +20,18 @@ class PDFRepository:
         Args:
             books_dir: Path to the directory containing PDF files.
         """
+        super().__init__(books_dir)
         self.books_dir = Path(books_dir)
         if not self.books_dir.is_dir():
             logger.warning(f"Books directory not found: {self.books_dir}")
             # Create it: self.books_dir.mkdir(parents=True, exist_ok=True)
 
-    def find_all_pdfs(self) -> list[PDFDocument]:
+    def find_all_documents(self) -> List[PDFDocument]:
         """Find all PDF documents in the books directory."""
         if not self.books_dir.is_dir():
             return []
 
-        pdf_documents: list[PDFDocument] = []
+        pdf_documents: List[PDFDocument] = []
         for pdf_path in self.books_dir.glob("*.pdf"):
             try:
                 # Only create the object, don't load metadata/pages here
@@ -42,7 +45,7 @@ class PDFRepository:
                 logger.error(err_msg)
         return pdf_documents
 
-    def find_by_filename(self, filename: str) -> PDFDocument | None:
+    def find_by_filename(self, filename: str) -> Optional[PDFDocument]:
         """Find a PDF document by its filename."""
         pdf_path = self.books_dir / filename
         if pdf_path.is_file() and pdf_path.suffix.lower() == ".pdf":
@@ -60,18 +63,24 @@ class PDFRepository:
 
     def load_pages(
         self,
-        pdf_document: PDFDocument,
+        document: BaseDocument,
         max_pages: Optional[int] = None,
     ) -> PDFDocument:
         """Load pages from the PDF document.
 
         Args:
-            pdf_document: The PDF document to load pages from.
+            document: The PDF document to load pages from.
             max_pages: Maximum number of pages to load. If None, all pages.
 
         Returns:
             The PDF document with pages loaded.
         """
+        # Type check and cast
+        if not isinstance(document, PDFDocument):
+            raise TypeError("Expected PDFDocument instance")
+
+        pdf_document = cast(PDFDocument, document)
+
         try:
             # This is where fitz.open is used
             with fitz.open(pdf_document.file_path) as doc:
@@ -151,3 +160,14 @@ class PDFRepository:
         cleaned_lines = [line.strip() for line in lines if line.strip()]
         cleaned_text = "\n".join(cleaned_lines)
         return cleaned_text
+
+    @property
+    def supported_extensions(self) -> List[str]:
+        """Get the list of file extensions supported by this repository."""
+        return [".pdf"]
+
+    # Legacy methods to maintain backward compatibility
+
+    def find_all_pdfs(self) -> List[PDFDocument]:
+        """Find all PDF documents in the books directory."""
+        return self.find_all_documents()

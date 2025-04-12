@@ -1,12 +1,18 @@
-"""Tests for the conversion service."""
+"""Tests for the Conversion Service."""
 
 from pathlib import Path
+from typing import List, cast
 from unittest.mock import MagicMock, mock_open, patch
 
 import pytest
 
-from book_reader.models.audio_config import AudioConfig
-from book_reader.models.pdf_document import PDFDocument, PDFMetadata, PDFPage
+from book_reader.config.audio_config import AudioConfig
+from book_reader.models.formats.pdf_document import (
+    DocumentPage,
+    PDFDocument,
+    PDFMetadata,
+    PDFPage,
+)
 from book_reader.services.conversion_service import ConversionService
 
 
@@ -54,7 +60,7 @@ def test_pdf_document() -> PDFDocument:
         file_path="test.pdf",
         file_name="test.pdf",
         metadata=metadata,
-        pages=pages,
+        pages=cast(List[DocumentPage], pages),
     )
 
 
@@ -65,7 +71,7 @@ def conversion_service(
     """Create a ConversionService instance with mocked dependencies."""
     progress_file_path = tmp_path / "test_progress.json"
     service = ConversionService(
-        pdf_repository=mock_pdf_repository,
+        document_repository=mock_pdf_repository,
         tts_service=mock_tts_service,
         progress_file=str(progress_file_path),
     )
@@ -79,10 +85,10 @@ class TestConversionService:
         """Test ConversionService initialization."""
         progress_file = tmp_path / "init_progress.json"
         service = ConversionService(
-            pdf_repository=mock_pdf_repository,
+            document_repository=mock_pdf_repository,
             progress_file=str(progress_file),
         )
-        assert service.pdf_repository == mock_pdf_repository
+        assert service.document_repository == mock_pdf_repository
         assert service.progress_file == progress_file
 
     @patch("pathlib.Path.exists", return_value=False)
@@ -274,7 +280,7 @@ class TestConversionService:
 
                     # Assert load_pages was called
                     mock_pdf_repository.load_pages.assert_any_call(
-                        pdf_document=test_pdf_document, max_pages=None
+                        document=test_pdf_document, max_pages=None
                     )
 
                     # Assert process method calls based on filtered chunks
