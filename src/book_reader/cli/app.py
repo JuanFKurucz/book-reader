@@ -2,7 +2,7 @@
 
 import sys
 from pathlib import Path
-from typing import Any, List, Optional, Tuple, cast
+from typing import List, Optional, Tuple
 
 import click
 from rich.console import Console
@@ -26,12 +26,16 @@ def setup_services() -> Tuple[DocumentFactory, ConversionService]:
     # Create the TTS service
     tts_service = OpenAITTSServiceFactory.create()
 
-    # Create the conversion service with the repositories
+    # Get all repositories since we don't know which type we'll need
+    repositories = document_factory.get_all_repositories("books")
+    if not repositories:
+        raise RuntimeError("Could not create document repositories")
+
+    # Create the conversion service with the first repository
+    # The actual repository used will be determined when processing
     conversion_service = ConversionService(
         tts_service=tts_service,
-        # Cast to make type checker happy - document_factory is not BaseRepository
-        # but this still works at runtime due to design
-        document_repository=cast(Any, document_factory),
+        document_repository=repositories[0],
     )
 
     return document_factory, conversion_service
@@ -63,17 +67,16 @@ def _handle_sample_document(
     )
 
     if repo is None:
-        console.print(
-            "[bold red]Error:[/bold red] Could not get repository for sample file"
-        )
+        msg = "[bold red]Error:[/bold red] Could not get repository"
+        console.print(msg)
         return None
 
     sample_doc = repo.find_by_filename(sample_files[0].name)
     if sample_doc:
-        console.print(
-            f"[bold green]Using sample document:[/bold green] {sample_doc.file_name}"
-        )
-        return cast(BaseDocument, sample_doc)
+        msg = f"[bold green]Using sample:[/bold green] {sample_doc.file_name}"
+        console.print(msg)
+        # The document is guaranteed to be a BaseDocument by the repository
+        return sample_doc if isinstance(sample_doc, BaseDocument) else None
     else:
         msg = "[bold red]Error:[/bold red] Could not load sample document"
         console.print(msg)
@@ -112,10 +115,10 @@ def _handle_specific_document(
 
     document = repository.find_by_filename(doc_path.name)
     if document:
-        console.print(
-            f"[bold green]Selected document:[/bold green] {document.file_name}"
-        )
-        return cast(BaseDocument, document)
+        msg = f"[bold green]Selected:[/bold green] {document.file_name}"
+        console.print(msg)
+        # The document is guaranteed to be a BaseDocument by the repository
+        return document if isinstance(document, BaseDocument) else None
     else:
         err_msg = f"Could not load document: {doc_path}"
         console.print(f"[bold red]Error:[/bold red] {err_msg}")
@@ -136,19 +139,19 @@ def _handle_interactive_selection(
     """
     # No specific document selected, show a list
     all_documents: List[BaseDocument] = []
-    for repository in factory.get_all_repositories(books_dir=str(books_dir_path)):
-        all_documents.extend(repository.find_all_documents())
+    for repo in factory.get_all_repositories(books_dir=str(books_dir_path)):
+        all_documents.extend(repo.find_all_documents())
 
     if not all_documents:
-        console.print(
-            f"[bold yellow]No documents found in {books_dir_path}[/bold yellow]"
-        )
+        msg = f"[bold yellow]No documents in {books_dir_path}[/bold yellow]"
+        console.print(msg)
         return None
 
     # Display documents with numbers
     console.print("[bold]Available documents:[/bold]")
     for i, doc in enumerate(all_documents, 1):
-        console.print(f"  {i}. {doc.file_name} ({doc.format})")
+        idx = f"{i}\t"
+        console.print(f"{idx}{doc.file_name}:{doc.format}")
 
     # Prompt user to select a document
     try:
@@ -157,9 +160,8 @@ def _handle_interactive_selection(
         index = int(selection) - 1
         if 0 <= index < len(all_documents):
             selected_doc = all_documents[index]
-            console.print(
-                f"[bold green]Selected document:[/bold green] {selected_doc.file_name}"
-            )
+            msg = f"[bold green]Selected:[/bold green] {selected_doc.file_name}"
+            console.print(msg)
             return selected_doc
         else:
             console.print("[bold red]Error:[/bold red] Invalid selection")
@@ -189,7 +191,8 @@ def _handle_document_selection(
     """
     # Get books directory from settings if not specified
     if books_dir is None:
-        books_dir_path = Path("books")  # Default to books/ in current directory
+        # Default to books/ in current directory
+        books_dir_path = Path("books")
         # Try to get books_dir from settings if available
         if hasattr(settings, "paths"):
             if hasattr(settings.paths, "books_dir"):
@@ -281,6 +284,26 @@ def process_document(
         effective_batch_size = settings.batch_size
     if effective_batch_size is None:
         effective_batch_size = 4  # Default
+
+    # Get the appropriate repository for this document type
+    document_factory = DocumentFactory()
+
+    # Get books directory from settings or use default
+    books_dir = Path("books")
+    if hasattr(settings, "paths"):
+        if hasattr(settings.paths, "books_dir"):
+            books_dir = settings.paths.books_dir
+
+    # Get repository for document type
+    repository = document_factory.get_repository_for_extension(
+        f".{document.extension}", str(books_dir)
+    )
+    if not repository:
+        msg = f"No repository found for {document.extension} files"
+        raise RuntimeError(msg)
+
+    # Update the conversion service with the correct repository
+    conversion_service.document_repository = repository
 
     # Convert document to audiobook
     conversion_service.convert_document_to_audiobook(

@@ -41,7 +41,7 @@ jobs:
       # Use secrets for actual keys in real scenarios
       run: |
         source .venv/bin/activate
-        uv run pytest --cov=src/book_reader --cov-report=xml
+        uv run pytest --cov=src/book_reader --cov-report=xml --ignore=tests/integration
       env:
         OPENAI_API_KEY: 'test-key' # Use a dummy key
 

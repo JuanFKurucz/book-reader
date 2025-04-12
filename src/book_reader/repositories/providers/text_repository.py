@@ -1,6 +1,6 @@
 """Text Repository for handling text files."""
 
-from typing import List, Optional, cast
+from typing import List, Optional
 
 from loguru import logger
 
@@ -64,31 +64,28 @@ class TextRepository(BaseRepository[TextDocument]):
         Returns:
             The text document with content loaded.
         """
-        # Type check and cast
         if not isinstance(document, TextDocument):
             raise TypeError("Expected TextDocument instance")
 
-        text_document = cast(TextDocument, document)
-
         try:
             # Set basic metadata
-            self._set_basic_metadata(text_document)
+            self._set_basic_metadata(document)
 
             # Read the text file
-            with open(text_document.file_path, "r", encoding="utf-8") as f:
+            with open(document.file_path, "r", encoding="utf-8") as f:
                 content = f.read()
 
             # Clean the text
             clean_content = self._clean_text(content)
 
             # Add as a single page
-            text_document.add_page(clean_content, 0)
+            document.add_page(clean_content, 0)
 
         except Exception as e:
-            msg = f"Error loading content for {text_document.file_name}: {e}"
+            msg = f"Error loading content for {document.file_name}: {e}"
             logger.error(msg)
 
-        return text_document
+        return document
 
     def _set_basic_metadata(self, document: TextDocument) -> None:
         """Set basic metadata for the text document.

@@ -89,10 +89,60 @@ book-reader/
 ├── src/                # Source code
 ├── docs/               # Documentation
 ├── tests/              # Test suite
+│   └── integration/    # End-to-end tests with real API calls
 └── ...                 # Configuration files
 ```
 
 For more details about the architecture and components, see the [API documentation](https://juanfkurucz.github.io/book-reader/api/).
+
+## Testing
+
+Book Reader includes both unit tests and integration tests:
+
+### Unit Tests
+
+Run the unit tests with:
+
+```bash
+# Using pytest directly
+pytest
+
+# Or with uv
+uv run pytest
+```
+
+### Integration Tests
+
+The project includes end-to-end integration tests that perform real API calls to OpenAI. These tests:
+- Require an OpenAI API key (from environment variable or .env file)
+- Consume API credits
+- Are skipped by default in normal test runs
+
+To run integration tests:
+
+```bash
+# Set your OpenAI API key (if not in .env file)
+export OPENAI_API_KEY=your-api-key
+
+# Run all integration tests using uv
+uv run pytest tests/integration/
+
+# Run specific integration test file
+uv run pytest tests/integration/test_end_to_end.py
+
+# Run integration tests with sample generation
+uv run pytest tests/integration/create_samples.py
+
+# Run with verbose output
+uv run pytest -v tests/integration/
+
+# Run with coverage report
+uv run pytest --cov=book_reader tests/integration/
+```
+
+Note: Integration tests may take longer to run as they interact with external services. Make sure you have sufficient API credits before running them.
+
+For more details, see [Integration Tests README](tests/integration/README.md).
 
 ## Acknowledgements
 

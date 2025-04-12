@@ -41,6 +41,8 @@ dev = [
     "mypy>=1.0.0",
     "black>=23.0.0",
     "pre-commit>=3.0.0",
+    "reportlab>=4.0.0",
+    "types-reportlab>=4.0.0",
 ]
 
 docs = [
@@ -98,7 +100,11 @@ module = [
     "bs4",
     "ebooklib",
     "pytest",
-    "loguru"
+    "loguru",
+    "reportlab",
+    "reportlab.lib",
+    "reportlab.pdfgen",
+    "reportlab.lib.pagesizes"
 ]
 ignore_missing_imports = true
 

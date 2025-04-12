@@ -110,11 +110,13 @@ def test_convert_no_args(
     assert result.exit_code == 0
     mock_setup_services.assert_called_once()
 
-    # Check that _handle_document_selection was called (without checking exact args)
+    # Check that _handle_document_selection was called
+    # (without checking exact args)
     mock_handle_document_selection.assert_called_once()
     # Verify key behavior - check use_sample is False
-    assert mock_handle_document_selection.call_args[1]["use_sample"] is False
-    assert mock_handle_document_selection.call_args[1]["filename"] is None
+    args = mock_handle_document_selection.call_args[1]
+    assert args["use_sample"] is False
+    assert args["filename"] is None
 
     # Check process_document was called with the returned document
     mock_process_document.assert_called_once()
@@ -140,11 +142,13 @@ def test_convert_sample_flag(
     assert result.exit_code == 0
     mock_setup_services.assert_called_once()
 
-    # Check that _handle_document_selection was called (without checking exact args)
+    # Check that _handle_document_selection was called
+    # (without checking exact args)
     mock_handle_document_selection.assert_called_once()
     # Verify key behavior - check use_sample is True
-    assert mock_handle_document_selection.call_args[1]["use_sample"] is True
-    assert mock_handle_document_selection.call_args[1]["filename"] is None
+    args = mock_handle_document_selection.call_args[1]
+    assert args["use_sample"] is True
+    assert args["filename"] is None
 
     # Check process_document was called with the returned document
     mock_process_document.assert_called_once()
@@ -170,11 +174,13 @@ def test_convert_specific_file(
     assert result.exit_code == 0
     mock_setup_services.assert_called_once()
 
-    # Check that _handle_document_selection was called (without checking exact args)
+    # Check that _handle_document_selection was called
+    # (without checking exact args)
     mock_handle_document_selection.assert_called_once()
     # Verify key behavior - check filename is passed correctly
-    assert mock_handle_document_selection.call_args[1]["use_sample"] is False
-    assert mock_handle_document_selection.call_args[1]["filename"] == test_filename
+    args = mock_handle_document_selection.call_args[1]
+    assert args["use_sample"] is False
+    assert args["filename"] == test_filename
 
     # Check process_document was called with the returned document
     mock_process_document.assert_called_once()
@@ -213,18 +219,18 @@ def test_convert_override_output_dir(
     assert result.exit_code == 0
     mock_setup_services.assert_called_once()
 
-    # Check that _handle_document_selection was called (without checking exact args)
+    # Check that _handle_document_selection was called
+    # (without checking exact args)
     mock_handle_document_selection.assert_called_once()
     # Verify key behavior - check filename is passed correctly
-    assert mock_handle_document_selection.call_args[1]["use_sample"] is False
-    assert mock_handle_document_selection.call_args[1]["filename"] == test_filename
+    args = mock_handle_document_selection.call_args[1]
+    assert args["use_sample"] is False
+    assert args["filename"] == test_filename
 
-    # Specifically test that the output directory is set to the custom value
+    # Check process_document was called with custom output dir
     mock_process_document.assert_called_once()
-    # Just check output_dir was set to the custom path string representation
-    assert str(mock_process_document.call_args[1]["output_dir"]) == str(
-        custom_output_dir
-    )
+    process_args = mock_process_document.call_args[1]
+    assert str(process_args["output_dir"]) == str(custom_output_dir)
 
 
 @patch("book_reader.cli.app.settings")
@@ -261,18 +267,21 @@ def test_convert_override_books_dir(
     assert result.exit_code == 0
     mock_setup_services.assert_called_once()
 
-    # Check that _handle_document_selection was called (without checking exact args)
+    # Check that _handle_document_selection was called
+    # (without checking exact args)
     mock_handle_document_selection.assert_called_once()
     # Verify key behavior - check filename is passed correctly
-    assert mock_handle_document_selection.call_args[1]["use_sample"] is False
-    assert mock_handle_document_selection.call_args[1]["filename"] == test_filename
+    args = mock_handle_document_selection.call_args[1]
+    assert args["use_sample"] is False
+    assert args["filename"] == test_filename
 
     # Check process_document was called with the returned document
     mock_process_document.assert_called_once()
     expected_doc = mock_handle_document_selection.return_value
-    assert mock_process_document.call_args[1]["document"] == expected_doc
+    process_args = mock_process_document.call_args[1]
+    assert process_args["document"] == expected_doc
     # Just check that the output_dir attribute exists
-    assert "output_dir" in mock_process_document.call_args[1]
+    assert "output_dir" in process_args
 
 
 @patch("book_reader.cli.app.settings")
@@ -535,7 +544,7 @@ def test_handle_selection_no_documents(
 
     assert selected_doc is None
     captured = capsys.readouterr()
-    assert "No documents found" in captured.out
+    assert "No documents in mock_books" in captured.out
 
 
 @patch("rich.prompt.Prompt.ask", side_effect=ValueError)

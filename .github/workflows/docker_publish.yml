@@ -10,9 +10,19 @@ on:
   workflow_dispatch: # Allows manual trigger for production job
 
 jobs:
+  # Run integration tests before building and pushing
+  integration_tests:
+    name: Run Integration Tests
+    uses: ./.github/workflows/integration_tests.yml
+    with:
+      skip_on_missing_key: true
+    secrets:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+
   # Production Job: Build and Push image on tags or published releases
   build_push_prod:
     name: Build and Push Production Docker Image
+    needs: integration_tests  # Make sure the integration tests pass first
     runs-on: ubuntu-latest
     if: (github.event_name == 'release' && github.event.action == 'published') || startsWith(github.ref, 'refs/tags/v')
     environment:
