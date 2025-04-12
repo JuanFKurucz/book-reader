@@ -1,0 +1,59 @@
+site_name: Book Reader Documentation
+site_description: Documentation for the Book Reader application
+site_author: Juan Francisco Kurucz
+repo_url: https://github.com/juanfkurucz/book-reader
+repo_name: juanfkurucz/book-reader
+
+theme:
+  name: material
+  palette:
+    primary: indigo
+    accent: deep purple
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.expand
+    - navigation.indexes
+    - content.code.copy
+    - content.tabs.link
+  icon:
+    repo: fontawesome/brands/github
+
+plugins:
+  - search
+  - mkdocstrings:
+      default_handler: python
+      handlers:
+        python:
+          options:
+            show_source: true
+            show_root_heading: true
+            show_category_heading: true
+            show_submodules: true
+            members_order: source
+            docstring_style: google
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
+  - admonition
+  - pymdownx.details
+  - pymdownx.tabbed:
+      alternate_style: true
+
+nav:
+  - Home: index.md
+  - Installation: installation.md
+  - Usage: usage.md
+  - API Reference:
+    - Overview: api/index.md
+    - Models: api/models.md
+    - Repositories: api/repositories.md
+    - Services: api/services.md
+    - Utils: api/utils.md
+  - Contributing: contributing.md
