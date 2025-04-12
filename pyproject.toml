@@ -1,0 +1,101 @@
+[build-system]
+requires = ["setuptools>=61.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "book-reader"
+version = "0.1.0"
+authors = [
+    {name = "Juan Francisco Kurucz", email = "juanfkurucz@gmail.com"},
+]
+description = "Convert PDF files to audiobooks using OpenAI TTS with multiple voice and model options"
+readme = "README.md"
+requires-python = ">=3.13.3"
+license = {file = "LICENSE"}
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.13",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "PyMuPDF>=1.20.0",
+    "beautifulsoup4>=4.10.0",
+    "openai>=1.0.0",
+    "lxml>=4.9.0",
+    "python-dotenv>=1.0.0",
+    "requests>=2.28.0",
+    "pydantic>=2.0.0",
+    "pydantic-settings>=2.0.0",
+    "click>=8.1.0",
+    "rich>=12.0.0",
+    "loguru>=0.7.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "ruff>=0.1.0",
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "mypy>=1.0.0",
+    "black>=23.0.0",
+    "pre-commit>=3.0.0",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/juanfkurucz/book-reader"
+"Bug Tracker" = "https://github.com/juanfkurucz/book-reader/issues"
+
+[project.scripts]
+book-reader = "book_reader.cli.app:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "C90"]
+ignore = []
+fixable = ["ALL"]
+unfixable = []
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "auto"
+
+[tool.mypy]
+python_version = "3.13"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+files = ["src", "tests"]
+show_error_codes = true
+pretty = true
+
+[[tool.mypy.overrides]]
+module = [
+    "fitz",
+    "dotenv",
+    "pydantic_settings",
+    "requests",
+    "rich.*",
+    "click",
+    "bs4",
+    "pytest",
+    "loguru"
+]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = "test_*.py"
+python_functions = "test_*"
+python_classes = "Test*"

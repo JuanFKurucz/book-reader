@@ -1,0 +1,64 @@
+# .pre-commit-config.yaml
+# See https://pre-commit.com for more information
+# See https://pre-commit.com/hooks.html for more hooks
+
+repos:
+# Standard hooks
+-   repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+    -   id: trailing-whitespace
+    -   id: end-of-file-fixer
+    -   id: check-yaml
+    -   id: check-added-large-files
+    -   id: check-toml
+
+# Ruff for linting and formatting
+-   repo: https://github.com/astral-sh/ruff-pre-commit
+    # Use a specific Ruff version compatible with your pyproject.toml
+    # rev: v0.5.9 # This tag doesn't exist
+    rev: v0.5.5 # Use a valid tag
+    hooks:
+    # Lint with autofix
+    -   id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
+    # Check formatting (Ruff format doesn't autofix well in pre-commit yet)
+    -   id: ruff-format
+        args: [--check]
+
+# MyPy for type checking
+-   repo: https://github.com/pre-commit/mirrors-mypy
+    # Use a specific MyPy version
+    rev: v1.11.2
+    hooks:
+    -   id: mypy
+        # Point to your main source directory and use pyproject.toml config
+        args: [--config-file=pyproject.toml]
+        # If your type hints depend on installed packages, add them here:
+        additional_dependencies: [
+            "pydantic>=2.0",
+            "click>=8.1.0",
+            "requests>=2.28.0",
+            "PyMuPDF>=1.20.0", # For fitz
+            "openai>=1.0.0"
+        ]
+
+# Conventional Commits Check
+-   repo: https://github.com/commitizen-tools/commitizen
+    rev: v3.29.0
+    hooks:
+    -   id: commitizen
+        stages: [commit-msg]
+
+# Pytest
+-   repo: local
+    hooks:
+    -   id: pytest-check
+        name: pytest-check
+        # Use uv to run pytest in the correct env
+        entry: uv run pytest
+        language: system
+        pass_filenames: false
+        always_run: true
+        # Use the modern stage name
+        stages: [pre-commit]
