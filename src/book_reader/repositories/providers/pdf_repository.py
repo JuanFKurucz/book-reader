@@ -1,7 +1,7 @@
 """PDF Repository for handling PDF files."""
 
 from pathlib import Path
-from typing import List, Optional, cast
+from typing import List, Optional
 
 import fitz
 from loguru import logger
@@ -79,13 +79,11 @@ class PDFRepository(BaseRepository[PDFDocument]):
         if not isinstance(document, PDFDocument):
             raise TypeError("Expected PDFDocument instance")
 
-        pdf_document = cast(PDFDocument, document)
-
         try:
             # This is where fitz.open is used
-            with fitz.open(pdf_document.file_path) as doc:
+            with fitz.open(document.file_path) as doc:
                 # Always load metadata
-                self._load_metadata(pdf_document, doc)
+                self._load_metadata(document, doc)
 
                 pages_count = doc.page_count
                 num_pages_to_load = (
@@ -93,11 +91,11 @@ class PDFRepository(BaseRepository[PDFDocument]):
                 )
                 for page_num in range(num_pages_to_load):
                     text = self._extract_text_from_page(doc, page_num)
-                    pdf_document.add_page(text, page_num)
+                    document.add_page(text, page_num)
         except Exception as e:
-            msg = f"Error loading pages for {pdf_document.file_name}: {e}"
+            msg = f"Error loading pages for {document.file_name}: {e}"
             logger.error(msg)
-        return pdf_document
+        return document
 
     # Helper to load metadata if desired during load_pages
     def _load_metadata(

@@ -124,9 +124,23 @@ To run integration tests:
 # Set your OpenAI API key (if not in .env file)
 export OPENAI_API_KEY=your-api-key
 
-# Run the integration tests
-python -m tests.integration.run_integration_tests --create-samples
+# Run all integration tests using uv
+uv run pytest tests/integration/
+
+# Run specific integration test file
+uv run pytest tests/integration/test_end_to_end.py
+
+# Run integration tests with sample generation
+uv run pytest tests/integration/create_samples.py
+
+# Run with verbose output
+uv run pytest -v tests/integration/
+
+# Run with coverage report
+uv run pytest --cov=book_reader tests/integration/
 ```
+
+Note: Integration tests may take longer to run as they interact with external services. Make sure you have sufficient API credits before running them.
 
 For more details, see [Integration Tests README](tests/integration/README.md).
 

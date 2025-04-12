@@ -24,7 +24,8 @@ def create_sample_pdf_file() -> None:
         c.drawString(100, 750, "Sample PDF Document")
 
         c.setFont("Helvetica", 12)
-        c.drawString(100, 700, "This is a sample PDF document for testing purposes.")
+        msg = "This is a sample PDF document for testing purposes."
+        c.drawString(100, 700, msg)
 
         # Add a couple paragraphs of text
         y_position = 650
@@ -38,7 +39,8 @@ def create_sample_pdf_file() -> None:
                 f"This is paragraph {i} of the sample document. "
                 "It contains multiple sentences to be converted to audio. "
                 "The text is simple to ensure fast conversion. "
-                "The sentences vary in length and content to test the TTS service."
+                "The sentences vary in length and content to test the "
+                "TTS service."
             )
 
             # Simple text wrapping
@@ -79,7 +81,8 @@ def create_sample_text_file() -> None:
             f.write("This is a sample text document for testing purposes.\n\n")
             f.write("## Chapter 1\n\n")
             f.write("This is the first chapter of the sample document.\n")
-            f.write("It contains multiple sentences to be converted to audio.\n")
+            msg = "It contains multiple sentences to be converted to audio.\n"
+            f.write(msg)
             f.write(
                 "The sentences vary in length and content to test the TTS service.\n\n"
             )

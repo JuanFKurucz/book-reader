@@ -107,6 +107,7 @@ dev = [
     { name = "pytest-cov" },
     { name = "reportlab" },
     { name = "ruff" },
+    { name = "types-reportlab" },
 ]
 docs = [
     { name = "mkdocs" },
@@ -138,6 +139,7 @@ requires-dist = [
     { name = "requests", specifier = ">=2.28.0" },
     { name = "rich", specifier = ">=12.0.0" },
     { name = "ruff", marker = "extra == 'dev'", specifier = "==0.11.5" },
+    { name = "types-reportlab", marker = "extra == 'dev'", specifier = ">=4.0.0" },
 ]
 provides-extras = ["dev", "docs"]
 
@@ -1042,6 +1044,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/a8/4b/29b4ef32e036bb34e4ab51796dd745cdba7ed47ad142a9f4a1eb8e0c744d/tqdm-4.67.1.tar.gz", hash = "sha256:f8aef9c52c08c13a65f30ea34f4e5aac3fd1a34959879d7e59e63027286627f2", size = 169737 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/d0/30/dc54f88dd4a2b5dc8a0279bdd7270e735851848b762aeb1c1184ed1f6b14/tqdm-4.67.1-py3-none-any.whl", hash = "sha256:26445eca388f82e72884e0d580d5464cd801a3ea01e63e5601bdff9ba6a48de2", size = 78540 },
+]
+
+[[package]]
+name = "types-reportlab"
+version = "4.3.1.20250401"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/79/70/01762154c17fde7415d32df3231e64858d4e573a5fae25258a7827e63c88/types_reportlab-4.3.1.20250401.tar.gz", hash = "sha256:39a8a8b80025b6a75f7aca68df1695d333ebd544ed35a49ee063370239c2a28c", size = 67370 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/57/72/9c6b52846ffc53e2673f127710dadd5d6b71438be308da1c3fecc12b2fd0/types_reportlab-4.3.1.20250401-py3-none-any.whl", hash = "sha256:21954efe8ade87e58336ddfb95259f9ed7c393cbd46481113f64c4fd2f6fb08a", size = 108610 },
 ]
 
 [[package]]

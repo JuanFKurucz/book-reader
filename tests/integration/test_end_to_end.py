@@ -1,12 +1,12 @@
-"""End-to-end integration tests for Book Reader."""
+"""End-to-end integration tests."""
 
-import os
-import subprocess
 from pathlib import Path
 from typing import List, Tuple
 
 import pytest
+from click.exceptions import Exit
 
+from book_reader.cli.app import cli
 from tests.integration.conftest import PDF_SAMPLE, TEXT_SAMPLE
 
 
@@ -22,13 +22,11 @@ def test_pdf_conversion(
 
     # Skip if sample PDF not available
     if PDF_SAMPLE not in samples:
-        pytest.skip(f"Sample PDF file ({PDF_SAMPLE}) not found in books directory")
+        msg = f"Sample PDF file ({PDF_SAMPLE}) not found in books directory"
+        pytest.skip(msg)
 
     # Execute the command (with minimal content since we're testing)
-    cmd = [
-        "python",
-        "-m",
-        "book_reader.cli.app",
+    args = [
         "convert",
         PDF_SAMPLE,
         "--max-pages",
@@ -39,11 +37,16 @@ def test_pdf_conversion(
         str(temp_output_dir),
     ]
 
-    # Run the command and check output
-    result = subprocess.run(cmd, capture_output=True, text=True, env={**os.environ})
-
-    # Check if the command succeeded
-    assert result.returncode == 0, f"Command failed: {result.stderr}"
+    # Run the command and expect a clean exit
+    try:
+        cli(args)
+    except (Exit, SystemExit) as e:
+        # Handle both Click's Exit and SystemExit
+        if isinstance(e, SystemExit):
+            assert e.code == 0
+        else:
+            # Click's Exit doesn't have a code attribute
+            pass
 
     # Check if output files were created
     output_files = list(temp_output_dir.glob("**/*.mp3"))
@@ -74,14 +77,8 @@ def test_text_conversion(
             f.write("This is a sample text for testing TTS conversion.\n")
             f.write("It is kept very brief to minimize API usage.")
 
-        # Note: in a real test we'd create a more substantial document
-        # but for this example we're keeping it minimal
-
     # Execute the command
-    cmd = [
-        "python",
-        "-m",
-        "book_reader.cli.app",
+    args = [
         "convert",
         TEXT_SAMPLE,
         "--books-dir",
@@ -90,11 +87,16 @@ def test_text_conversion(
         str(temp_output_dir),
     ]
 
-    # Run the command and check output
-    result = subprocess.run(cmd, capture_output=True, text=True, env={**os.environ})
-
-    # Check if the command succeeded
-    assert result.returncode == 0, f"Command failed: {result.stderr}"
+    # Run the command and expect a clean exit
+    try:
+        cli(args)
+    except (Exit, SystemExit) as e:
+        # Handle both Click's Exit and SystemExit
+        if isinstance(e, SystemExit):
+            assert e.code == 0
+        else:
+            # Click's Exit doesn't have a code attribute
+            pass
 
     # Check if output files were created
     output_files = list(temp_output_dir.glob("**/*.mp3"))
